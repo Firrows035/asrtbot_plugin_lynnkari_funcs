@@ -292,7 +292,7 @@ class MyPlugin(Star):
         path=await save(image)
         await self.context.send_message(umo, message_chain)
         message_chain = MessageChain().file_image(f"{path}")
-        await self.context.send_message(umo, message_chain)
+        yield self.context.send_message(umo, message_chain)
 
     @filter.permission_type(filter.PermissionType.ADMIN)
     @ff.command("setip")
