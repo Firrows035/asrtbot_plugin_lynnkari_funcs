@@ -242,7 +242,7 @@ async def save(images):
             image.save(path)
             print("saved:", path)
             return f"D:/ComfyUI_AstrBot_Temp/{filename}"
-@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.1")
+@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.2")
 class MyPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
