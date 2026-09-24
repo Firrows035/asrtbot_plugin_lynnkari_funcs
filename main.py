@@ -242,7 +242,7 @@ async def save(images):
             image.save(path)
             print("saved:", path)
             return f"D:/ComfyUI_AstrBot_Temp/{filename}"
-@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.2")
+@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.3")
 class MyPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -281,18 +281,16 @@ class MyPlugin(Star):
         # /ff add 1 2 -> 结果是: 3
         yield event.plain_result(f"结果是: {a + b}")
 
-    @ff.command("picture", alias={"生成图片"})
+    @ff.command("picture", alias={"生成图片", "pic"})
     async def picture(self, event: AstrMessageEvent, user_prompt: str):
         """调用本地ComfyUI生成图片"""
         umo = event.unified_msg_origin
-        message_chain = MessageChain().message("收到指令。尝试连接中...")
-        await self.context.send_message(umo, message_chain)
+        yield event.plain_result("收到指令。尝试连接中...")
         image=await generate(user_prompt, server_address, client_id)
-        message_chain = MessageChain().message("图片已生成！")
         path=await save(image)
+        message_chain = MessageChain().file_image(f"{path}").message("图片已生成！")
         await self.context.send_message(umo, message_chain)
-        message_chain = MessageChain().file_image(f"{path}")
-        yield self.context.send_message(umo, message_chain)
+        
 
     @filter.permission_type(filter.PermissionType.ADMIN)
     @ff.command("setip")
