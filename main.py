@@ -285,11 +285,13 @@ class MyPlugin(Star):
     async def picture(self, event: AstrMessageEvent, user_prompt: str):
         """调用本地ComfyUI生成图片"""
         umo = event.unified_msg_origin
-        message_chain = MessageChain().message("正在生成中...")
+        message_chain = MessageChain().message("收到指令。尝试连接中...")
         await self.context.send_message(umo, message_chain)
         image=await generate(user_prompt, server_address, client_id)
+        message_chain = MessageChain().message("图片已生成！")
         path=await save(image)
-        message_chain = MessageChain().message("图片已生成！").file_image(f"{path}")
+        await self.context.send_message(umo, message_chain)
+        message_chain = MessageChain().file_image(f"{path}")
         await self.context.send_message(umo, message_chain)
 
     @filter.permission_type(filter.PermissionType.ADMIN)
