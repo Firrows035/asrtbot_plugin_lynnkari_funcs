@@ -283,7 +283,7 @@ def save(images):
             image.save(path)
             logger.info(f"saved: {path}")
             return f"D:/ComfyUI_AstrBot_Temp/{filename}"
-@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.6")
+@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.7")
 class MyPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -312,13 +312,13 @@ class MyPlugin(Star):
         # /ff add 1 2 -> 结果是: 3
         yield event.plain_result(f"结果是: {a + b}")
 
-    @ff.command("picture", alias={"生成图片", "pic"})
+    @ff.command("picture", alias={"图", "pic"})
     async def picture(self, event: AstrMessageEvent, user_prompt: str, aspect_ratio=3, mega_pixels=1.0):
         """调用本地ComfyUI生成图片"""
         global comfyui_queue
 
         if user_prompt == "help":
-            yield event.plain_result("/ff picture (user_prompt: str) [aspect_ratio: int] [mega_pixels: float]\nuser_prompt：给模型的提示词（正面）。不要包含空格（因此建议用中文）。\naspect_ratio：图片宽高比，0-7分别对应：1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9。默认为3 (3:4)。\nmega_pixels：图片的总像素数（百万像素），最高2.0，最低0.5。默认为1.0。")
+            yield event.plain_result("/ff picture <user_prompt: str> [aspect_ratio: int] [mega_pixels: float]\nuser_prompt：给模型的提示词（正面）。不要包含空格（因此建议用中文）。\naspect_ratio：图片宽高比，0-7分别对应：1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9。默认为3 (3:4)。\nmega_pixels：图片的总像素数（百万像素），最高2.0，最低0.5。默认为1.0。")
             return
 
         if comfyui_queue:
@@ -379,6 +379,41 @@ class MyPlugin(Star):
         """查看当前存储的ComfyUI所在ip"""
         global server_address
         yield event.plain_result(f"当前ComfyUI服务器地址：{server_address}")
+
+    @ff.command("dice")
+    async def dice(self, event: AstrMessageEvent, command: str, show_details=False):
+        if command == "help":
+            yield event.plain_result("/ff dice <command> [show_details]\ncommand：指定投出骰子的数量与面数，格式：<dice_amount>d<dice_faces>。例如：3d6, 1d20。\nshow_details：是否显示详细结果。默认为False。")
+            return
+        dice_amount=None
+        dice_face=None
+        for index, char in enumerate(command):
+            if char=='d':
+                try:
+                    dice_amount=int(command[:index])
+                    dice_face=int(command[index+1:])
+                except ValueError:
+                    pass
+                finally:
+                    pass
+                break
+        die_result = []
+        dice_result=0
+        if dice_amount!=None and dice_face!=None:
+            message=f"Throwing: {command}\nResults:"
+            for i in range(dice_amount):
+                die_result.append(random.randint(1,dice_face))
+                dice_result+=die_result[i]
+                message+=f" {die_result[i]}"
+            message+=f"\nTotal: {dice_result}"
+            if show_details:
+                yield event.plain_result(message)
+            else:
+                yield event.plain_result(f"Result: {dice_result}")
+        else:
+            yield event.plain_result("输入格式错误！查阅/ff dice help以确定语法。")
+                
+            
 
     async def terminate(self):
         """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""
