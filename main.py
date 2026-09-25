@@ -3,7 +3,7 @@ import astrbot.api.message_components as Comp
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 from astrbot.api.event import MessageChain
-
+import random
 import websocket
 import uuid
 import json
@@ -13,7 +13,7 @@ import os
 import io
 from PIL import Image
 
-
+comfyui_queue_length=0
 server_address = "192.168.1.14:8188"
 client_id = str(uuid.uuid4())
 
@@ -77,7 +77,7 @@ prompt_text = """
   },
   "2": {
     "inputs": {
-      "text": "一个银发女孩的全身照。\n",
+      "text": "一个银发女孩的全身照。",
       "clip": [
         "3",
         0
@@ -122,7 +122,7 @@ prompt_text = """
   },
   "6": {
     "inputs": {
-      "seed": 185234953315678,
+      "seed": 201337714489622,
       "steps": 8,
       "cfg": 1,
       "sampler_name": "euler_ancestral",
@@ -208,16 +208,17 @@ prompt_text = """
   }
 }
 """
-async def generate(user_prompt,server_address,client_id):
+async def generate(user_prompt,server_address,client_id,self,umo):
     prompt = json.loads(prompt_text, strict=False)
     #set the text prompt for our positive CLIPTextEncode
-    prompt["2"]["inputs"]["text"] = user_prompt
+    prompt["20"]["inputs"]["text"] = user_prompt
 
     #set the seed for our KSampler node
-    prompt["6"]["inputs"]["seed"] = 114514
+    prompt["6"]["inputs"]["seed"] = random.randint(1,2**32-1)
 
     ws = websocket.WebSocket()
     ws.connect("ws://{}/ws?clientId={}".format(server_address, client_id))
+    await self.context.send_message(umo, MessageChain().message("服务器连接成功，准备生成..."))
     images = get_images(ws, prompt)
     ws.close() # for in case this example is used in an environment where it will be repeatedly called, like in a Gradio app. otherwise, you'll randomly receive connection timeouts
     #Commented out code to display the output images:
@@ -228,7 +229,7 @@ async def generate(user_prompt,server_address,client_id):
     #         import io
     #         image = Image.open(io.BytesIO(image_data))
     #         image.show()
-    return images
+    yield images
 
 async def save(images):
     save_dir = r"D:/ComfyUI_AstrBot_Temp"
@@ -242,7 +243,7 @@ async def save(images):
             image.save(path)
             print("saved:", path)
             return f"D:/ComfyUI_AstrBot_Temp/{filename}"
-@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.3")
+@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.4")
 class MyPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -285,9 +286,23 @@ class MyPlugin(Star):
     async def picture(self, event: AstrMessageEvent, user_prompt: str):
         """调用本地ComfyUI生成图片"""
         umo = event.unified_msg_origin
-        yield event.plain_result("收到指令。尝试连接中...")
-        image=await generate(user_prompt, server_address, client_id)
+        yield event.plain_result("尝试连接中...")
+
+        prompt = json.loads(prompt_text, strict=False)
+        #set the text prompt for our positive CLIPTextEncode
+        prompt["2"]["inputs"]["text"] = user_prompt
+    
+        #set the seed for our KSampler node
+        prompt["6"]["inputs"]["seed"] = random.randint(1,2**32-1)
+    
+        ws = websocket.WebSocket()
+        ws.connect("ws://{}/ws?clientId={}".format(server_address, client_id))
+        await self.context.send_message(umo, MessageChain().message("服务器连接成功，准备生成..."))
+        image = get_images(ws, prompt)
+        ws.close()
+
         path=await save(image)
+
         message_chain = MessageChain().file_image(f"{path}").message("图片已生成！")
         await self.context.send_message(umo, message_chain)
         
@@ -300,6 +315,12 @@ class MyPlugin(Star):
         server_address = f"192.168.1.{ip4}:8188"
         yield event.plain_result(f"ComfyUI服务器地址已修改：{server_address}")
 
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    @ff.command("checkip", alias={"ip"})
+    async def checkip(self,event:AstrMessageEvent):
+        """查看当前存储的ComfyUI所在ip"""
+        global server_address
+        yield event.plain_result(f"当前ComfyUI服务器地址：{server_address}")
 
     async def terminate(self):
         """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""
