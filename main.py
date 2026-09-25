@@ -283,7 +283,7 @@ def save(images):
             image.save(path)
             logger.info(f"saved: {path}")
             return f"D:/ComfyUI_AstrBot_Temp/{filename}"
-@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.7")
+@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.7b")
 class MyPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -291,7 +291,7 @@ class MyPlugin(Star):
     async def initialize(self):
         """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
 
-    @filter.command_group("ff", alias={"f","fff"})
+    @filter.command_group("ff", alias={"f","fff","啊","鱼姐","肥鱼","ds","原神","启动"})
     def ff():
         pass
 
@@ -312,13 +312,13 @@ class MyPlugin(Star):
         # /ff add 1 2 -> 结果是: 3
         yield event.plain_result(f"结果是: {a + b}")
 
-    @ff.command("picture", alias={"图", "pic"})
+    @ff.command("picture", alias={"图", "pic", "画图", "画画", "生成图片", "文生图", "comfyui", "画"})
     async def picture(self, event: AstrMessageEvent, user_prompt: str, aspect_ratio=3, mega_pixels=1.0):
         """调用本地ComfyUI生成图片"""
         global comfyui_queue
 
         if user_prompt == "help":
-            yield event.plain_result("/ff picture <user_prompt: str> [aspect_ratio: int] [mega_pixels: float]\nuser_prompt：给模型的提示词（正面）。不要包含空格（因此建议用中文）。\naspect_ratio：图片宽高比，0-7分别对应：1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9。默认为3 (3:4)。\nmega_pixels：图片的总像素数（百万像素），最高2.0，最低0.5。默认为1.0。")
+            yield event.plain_result("/ff picture (user_prompt: str) [aspect_ratio: int] [mega_pixels: float]\nuser_prompt：给模型的提示词（正面）。不要包含空格（因此建议用中文）。\naspect_ratio：图片宽高比，0-7分别对应：1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9。默认为3 (3:4)。\nmega_pixels：图片的总像素数（百万像素），最高2.0，最低0.5。默认为1.0。")
             return
 
         if comfyui_queue:
@@ -380,10 +380,11 @@ class MyPlugin(Star):
         global server_address
         yield event.plain_result(f"当前ComfyUI服务器地址：{server_address}")
 
-    @ff.command("dice")
+    @ff.command("dice", alias={"骰子", "random", "throw", "扔骰子", "掷骰子", "掷骰", "色子", "掷色子", "throwdice"})
     async def dice(self, event: AstrMessageEvent, command: str, show_details=False):
+        """扔骰子。可以指定数量和面数，支持显示简洁结果和详细结果。"""
         if command == "help":
-            yield event.plain_result("/ff dice <command> [show_details]\ncommand：指定投出骰子的数量与面数，格式：<dice_amount>d<dice_faces>。例如：3d6, 1d20。\nshow_details：是否显示详细结果。默认为False。")
+            yield event.plain_result("/ff dice (command: str) [show_details: bool]\ncommand：指定投出骰子的数量与面数，格式：(dice_amount)d(dice_faces)。例如：3d6, 1d20。\nshow_details：是否显示详细结果。默认为False。")
             return
         dice_amount=None
         dice_face=None
