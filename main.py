@@ -283,7 +283,7 @@ def save(images):
             image.save(path)
             logger.info(f"saved: {path}")
             return f"D:/ComfyUI_AstrBot_Temp/{filename}"
-@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.7b")
+@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.7c")
 class MyPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -291,7 +291,7 @@ class MyPlugin(Star):
     async def initialize(self):
         """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
 
-    @filter.command_group("ff", alias={"f","fff","啊","鱼姐","肥鱼","ds","原神","启动"})
+    @filter.command_group("ff", alias={"f","鱼姐","肥鱼"})
     def ff():
         pass
 
@@ -312,7 +312,7 @@ class MyPlugin(Star):
         # /ff add 1 2 -> 结果是: 3
         yield event.plain_result(f"结果是: {a + b}")
 
-    @ff.command("picture", alias={"图", "pic", "画图", "画画", "生成图片", "文生图", "comfyui", "画"})
+    @ff.command("picture", alias={"pic", "画图", "画画"})
     async def picture(self, event: AstrMessageEvent, user_prompt: str, aspect_ratio=3, mega_pixels=1.0):
         """调用本地ComfyUI生成图片"""
         global comfyui_queue
@@ -380,11 +380,11 @@ class MyPlugin(Star):
         global server_address
         yield event.plain_result(f"当前ComfyUI服务器地址：{server_address}")
 
-    @ff.command("dice", alias={"骰子", "random", "throw", "扔骰子", "掷骰子", "掷骰", "色子", "掷色子", "throwdice"})
+    @ff.command("dice", alias={"d"})
     async def dice(self, event: AstrMessageEvent, command: str, show_details=False):
-        """扔骰子。可以指定数量和面数，支持显示简洁结果和详细结果。"""
+        """扔骰子。可以指定数量和面数(显示简洁结果)。"""
         if command == "help":
-            yield event.plain_result("/ff dice (command: str) [show_details: bool]\ncommand：指定投出骰子的数量与面数，格式：(dice_amount)d(dice_faces)。例如：3d6, 1d20。\nshow_details：是否显示详细结果。默认为False。")
+            yield event.plain_result("/ff dice (command: str) 掷出骰子，只显示最终结果。\ncommand：指定投出骰子的数量与面数，格式：(dice_amount)d(dice_faces)。例如：3d6, 1d20。\nshow_details：是否显示详细结果。默认为False。")
             return
         dice_amount=None
         dice_face=None
@@ -402,19 +402,54 @@ class MyPlugin(Star):
         dice_result=0
         if dice_amount!=None and dice_face!=None:
             message=f"Throwing: {command}\nResults:"
+
             for i in range(dice_amount):
                 die_result.append(random.randint(1,dice_face))
                 dice_result+=die_result[i]
                 message+=f" {die_result[i]}"
+
             message+=f"\nTotal: {dice_result}"
-            if show_details:
-                yield event.plain_result(message)
-            else:
-                yield event.plain_result(f"Result: {dice_result}")
+
+            yield event.plain_result(f"Result: {dice_result}")
         else:
             yield event.plain_result("输入格式错误！查阅/ff dice help以确定语法。")
                 
+    @ff.command("ddice", alias={"dd"})
+    async def ddice(self, event: AstrMessageEvent, command: str, show_details=False):
+        """扔骰子。可以指定数量和面数(显示详细结果)。"""
+        if command == "help":
+            yield event.plain_result("/ff ddice (command: str) 掷出骰子，并显示详细结果。\ncommand：指定投出骰子的数量与面数，格式：(dice_amount)d(dice_faces)。例如：3d6, 1d20。")
+            return
+        dice_amount=None
+        dice_face=None
+        for index, char in enumerate(command):
+            if char=='d':
+                try:
+                    dice_amount=int(command[:index])
+                    dice_face=int(command[index+1:])
+                except ValueError:
+                    pass
+                finally:
+                    pass
+                break
             
+        die_result = []
+        dice_result=0
+
+        if dice_amount!=None and dice_face!=None:
+            message=f"Throwing: {command}\nResults:"
+
+            for i in range(dice_amount):
+                die_result.append(random.randint(1,dice_face))
+                dice_result+=die_result[i]
+                message+=f" {die_result[i]}"
+
+            message+=f"\nTotal: {dice_result}"
+
+            yield event.plain_result(message)
+
+        else:
+            yield event.plain_result("输入格式错误！查阅/ff ddice help以确定语法。")            
 
     async def terminate(self):
         """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""
