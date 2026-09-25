@@ -3,7 +3,6 @@ import astrbot.api.message_components as Comp
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 from astrbot.api.event import MessageChain
-import asyncio
 import random
 import websocket
 import uuid
@@ -19,15 +18,7 @@ comfyui_queue=False
 server_address = "192.168.1.14:8188"
 client_id = str(uuid.uuid4())
 
-def queue_prompt(prompt, prompt_id):
-    """向 ComfyUI 提交一次生成任务。
-
-    这是阻塞调用，必须在工作线程中执行（见 wait_until_executed）。
-
-    Args:
-        prompt: ComfyUI 工作流 prompt。
-        prompt_id: 本次任务的 id。
-    """
+async def queue_prompt(prompt, prompt_id):
     p = {"prompt": prompt, "client_id": client_id, "prompt_id": prompt_id}
     data = json.dumps(p).encode('utf-8')
     req = urllib.request.Request("http://{}/prompt".format(server_address), data=data)
@@ -40,27 +31,20 @@ async def get_image(filename, subfolder, folder_type):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             return await response.read()
+# def get_image(filename, subfolder, folder_type):
+#     data = {"filename": filename, "subfolder": subfolder, "type": folder_type}
+#     url_values = urllib.parse.urlencode(data)
+#     with urllib.request.urlopen("http://{}/view?{}".format(server_address, url_values)) as response:
+#         return response.read()
 
 def get_history(prompt_id):
-    """获取某次任务的执行历史（阻塞调用，请在工作线程中执行）。"""
     with urllib.request.urlopen("http://{}/history/{}".format(server_address, prompt_id)) as response:
         return json.loads(response.read())
 
-def wait_until_executed(ws, prompt, prompt_id):
-    """提交任务并阻塞等待 ComfyUI 执行结束。
-
-    该函数是同步阻塞的（websocket 收包 + HTTP 请求），必须在工作线程中执行，
-    否则会卡住 AstrBot 的事件循环，导致生成期间其它消息无法被处理。
-
-    Args:
-        ws: 已经连接好的 ComfyUI websocket 客户端。
-        prompt: ComfyUI 工作流 prompt。
-        prompt_id: 本次任务的 id。
-
-    Returns:
-        ComfyUI 执行历史中本次任务对应的结果。
-    """
-    queue_prompt(prompt, prompt_id)
+async def get_images(ws, prompt):
+    prompt_id = str(uuid.uuid4())
+    await queue_prompt(prompt, prompt_id)
+    output_images = {}
     while True:
         out = ws.recv()
         if isinstance(out, str):
@@ -75,12 +59,7 @@ def wait_until_executed(ws, prompt, prompt_id):
             # preview_image = Image.open(bytesIO) # This is your preview in PIL image format, store it in a global
             continue #previews are binary data
 
-    return get_history(prompt_id)[prompt_id]
-
-async def get_images(ws, prompt):
-    prompt_id = str(uuid.uuid4())
-    history = await asyncio.to_thread(wait_until_executed, ws, prompt, prompt_id)
-    output_images = {}
+    history =get_history(prompt_id)[prompt_id]
     for node_id in history['outputs']:
         node_output = history['outputs'][node_id]
         images_output = []
@@ -261,17 +240,7 @@ async def generate(user_prompt,server_address,client_id,self,umo):
     #         image.show()
     yield images
 
-def save(images):
-    """把生成结果中的第一张图片保存到本地磁盘。
-
-    涉及 PIL 解码和磁盘写入（阻塞操作），请在工作线程中执行。
-
-    Args:
-        images: get_images 返回的 "节点 id -> 图片字节列表" 字典。
-
-    Returns:
-        保存到本地后的图片路径。
-    """
+async def save(images):
     save_dir = r"D:/ComfyUI_AstrBot_Temp"
     os.makedirs(save_dir, exist_ok=True)
 
@@ -281,9 +250,9 @@ def save(images):
             filename = f"node{node_id}_{i}.png"
             path = os.path.join(save_dir, filename)
             image.save(path)
-            logger.info(f"saved: {path}")
+            print("saved:", path)
             return f"D:/ComfyUI_AstrBot_Temp/{filename}"
-@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.6")
+@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.5")
 class MyPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -316,53 +285,43 @@ class MyPlugin(Star):
     async def picture(self, event: AstrMessageEvent, user_prompt: str, aspect_ratio=3, mega_pixels=1.0):
         """调用本地ComfyUI生成图片"""
         global comfyui_queue
-
-        if user_prompt == "help":
+        
+        if user_prompt=="help":
             yield event.plain_result("/ff picture (user_prompt: str) [aspect_ratio: int] [mega_pixels: float]\nuser_prompt：给模型的提示词（正面）。不要包含空格（因此建议用中文）。\naspect_ratio：图片宽高比，0-7分别对应：1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9。默认为3 (3:4)。\nmega_pixels：图片的总像素数（百万像素），最高2.0，最低0.5。默认为1.0。")
-            return
 
-        if comfyui_queue:
-            yield event.plain_result("当前正在生成图片，请稍后再试。")
-            return
-
-        # 立即抢占队列标记（这中间没有 await，保证并发请求不会同时通过上面的检查）
-        comfyui_queue = True
-        umo = event.unified_msg_origin
-        try:
+        else:
+            if comfyui_queue:
+                  yield event.plain_result("当前正在生成图片，请稍后再试。")
+                  return
+            umo = event.unified_msg_origin
             yield event.plain_result("尝试连接中...")
 
             prompt = json.loads(prompt_text, strict=False)
-            # set the text prompt for our positive CLIPTextEncode
+            #set the text prompt for our positive CLIPTextEncode
             prompt["2"]["inputs"]["text"] = user_prompt
-            # set the seed for our KSampler node
-            prompt["6"]["inputs"]["seed"] = random.randint(1, 2**32 - 1)
+        
+            #set the seed for our KSampler node
+            prompt["6"]["inputs"]["seed"] = random.randint(1,2**32-1)
 
-            # set the aspect ratio of the latent
-            prompt["10"]["inputs"]["aspect_ratio"] = aspect_ratio_options[aspect_ratio]
+            #set the aspect ratio of the latent
+            prompt["10"]["inputs"]["aspect_ratio"]=aspect_ratio_options[aspect_ratio]
 
-            # set the pixels of the latent
-            prompt["10"]["inputs"]["megapixels"] = max(min(2.0, mega_pixels), 0.5)
-
+            #set the pixels of the latent
+            prompt["10"]["inputs"]["megapixels"]=max(min(2.0,mega_pixels),0.5)
+        
             ws = websocket.WebSocket()
-            # 建连、等待生成、读取历史、保存图片都是阻塞操作，交给工作线程执行，
-            # 否则会阻塞 AstrBot 的事件循环（生成期间其它消息将无法被处理）
-            await asyncio.to_thread(
-                ws.connect, "ws://{}/ws?clientId={}".format(server_address, client_id)
-            )
-
+            ws.connect("ws://{}/ws?clientId={}".format(server_address, client_id))
+            
             await self.context.send_message(umo, MessageChain().message(f"服务器连接成功，正在生成..."))
-            try:
-                image = await get_images(ws, prompt)
-            finally:
-                ws.close()
+            comfyui_queue=True
+            image =await get_images(ws, prompt)
+            ws.close()
 
-            path = await asyncio.to_thread(save, image)
+            path=await save(image)
 
             message_chain = MessageChain().file_image(f"{path}").message("图片已生成！")
             await self.context.send_message(umo, message_chain)
-        finally:
-            # 无论成功还是异常，都要释放队列标记，否则插件将再也无法生成图片
-            comfyui_queue = False
+            comfyui_queue=False
 
 
     @filter.permission_type(filter.PermissionType.ADMIN)
