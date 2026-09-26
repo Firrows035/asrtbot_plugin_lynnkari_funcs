@@ -19,7 +19,8 @@ comfyui_queue=False
 server_address = "192.168.1.14:8188"
 client_id = str(uuid.uuid4())
 
-function_picture=True
+module_comfyui=False
+module_dice=True
 
 
 def queue_prompt(prompt, prompt_id):
@@ -286,7 +287,7 @@ def save(images):
             image.save(path)
             logger.info(f"saved: {path}")
             return f"D:/ComfyUI_AstrBot_Temp/{filename}"
-@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.8a")
+@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.8c")
 class MyPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -310,21 +311,15 @@ class MyPlugin(Star):
         ]
         yield event.chain_result(chain)
 
-    @ff.command("add")
-    async def add(self, event: AstrMessageEvent, a: int, b: int):
-        """简单加法"""
-        # /ff add 1 2 -> 结果是: 3
-        yield event.plain_result(f"结果是: {a + b}")
-
     @ff.command("picture", alias={"pic", "画图", "画画"})
-    async def picture(self, event: AstrMessageEvent, user_prompt: str, aspect_ratio=3, mega_pixels=1.0):
+    async def picture(self, event: AstrMessageEvent, user_prompt="help", aspect_ratio=3, mega_pixels=1.0):
         """调用本地ComfyUI生成图片"""
         global comfyui_queue
 
         if user_prompt == "help":
             yield event.plain_result("/ff picture (user_prompt: str) [aspect_ratio: int] [mega_pixels: float]\nuser_prompt：给模型的提示词（正面）。不要包含空格（因此建议用中文）。\naspect_ratio：图片宽高比，0-7分别对应：1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9。默认为3 (3:4)。\nmega_pixels：图片的总像素数（百万像素），最高2.0，最低0.5。默认为1.0。")
             return
-        if function_picture==False:
+        if module_comfyui==False:
             yield event.plain_result("该模块目前被禁用，请联系管理员。")
             return
         if comfyui_queue:
@@ -373,8 +368,21 @@ class MyPlugin(Star):
 
     @filter.permission_type(filter.PermissionType.ADMIN)
     @ff.command("setip")
-    async def setip(self,event:AstrMessageEvent, ip4: int):
+    async def setip(self,event:AstrMessageEvent, ip4="help"):
         """修改ComfyUI所在ip"""
+
+        if ip4=="help":
+            yield event.plain_result("""/ff setip [4th_ip_address: int]
+            设置ip地址。""")
+            return
+        try:
+            ip4=int(ip4)
+        except ValueError:
+            yield event.plain_result("输入参数格式有误：请输入1-255间的整数。")
+            return
+        if ip4<1 or ip4>255:
+            yield event.plain_result("输入参数超出范围：应为1-255间的整数。")
+            return
         global server_address
         server_address = f"192.168.1.{ip4}:8188"
         yield event.plain_result(f"ComfyUI服务器地址已修改：{server_address}")
@@ -459,13 +467,16 @@ class MyPlugin(Star):
 
     @filter.permission_type(filter.PermissionType.ADMIN)
     @filter.command("sw", alias={"switch"})
-    async def sw(self, event: AstrMessageEvent, module: str, state="whatever"):
+    async def sw(self, event: AstrMessageEvent, module="help", state="unknown"):
+        """控制插件的功能开关"""
         if module == "help":
-            yield event.plain_result("/sw (module: str) (state: str) 开启/关闭对应功能。")
-            return        
+            yield event.plain_result("/sw (module: str) [state: str] 开启/关闭对应功能。")
+            return
+                
         change_state: bool
         enable=["1", "true", "True", "TRUE", "Enable", "enable", "ENABLE", "on", "On", "ON"]
         disable=["0", "false", "False", "FALSE", "Disable", "disable", "DISABLE", "off", "Off", "OFF"]
+
         if state in enable:
             change_state=True
         elif state in disable:
@@ -473,14 +484,39 @@ class MyPlugin(Star):
         else:
             yield event.plain_result("参数错误！请检查输入。")
             return
+        
         if module=="pic" or module=="picture":
-            global function_picture
-            function_picture=change_state
+            global module_comfyui
+            module_comfyui=change_state
             yield event.plain_result(f"ComfyUI Text-to-Image: {"enabled" if change_state else "disabled"}")
+
         else:
             yield event.plain_result("参数错误！请检查输入。")
             return
-            
 
+    @filter.command("swc",alias={"swcheck", "switchcheck"})
+    async def swc(self, event: AstrMessageEvent, module=""):
+        """查看当前功能状态"""        
+        if module=="help":
+            yield event.plain_result("""/swc [module: str]
+            查看模块启用状态。若module参数为空则显示所有功能运行情况。""")
+
+        #list all functions
+        elif module=="":
+            yield event.plain_result(f"""ComfyUI Text-to-Image: {"enabled" if module_comfyui else "disabled"}
+            Dice: {"enabled" if module_dice else "disabled"}""")
+
+        #comfyui picturing
+        elif module in ["pic", "画图", "画画", "picture"]:
+            yield event.plain_result(f"ComfyUI Text-to-Image: {"enabled" if module_comfyui else "disabled"}")
+
+        #dice throwing
+        elif module in ["dice","d"]:
+            yield event.plain_result(f"Dice: {"enabled" if module_dice else "disabled"}")
+
+        else:
+            yield event.plain_result("参数错误！请检查输入。")
+            return
+                
     async def terminate(self):
         """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""
