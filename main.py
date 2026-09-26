@@ -286,7 +286,7 @@ def save(images):
             image.save(path)
             logger.info(f"saved: {path}")
             return f"D:/ComfyUI_AstrBot_Temp/{filename}"
-@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.8")
+@register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", "0.0.8a")
 class MyPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -457,6 +457,7 @@ class MyPlugin(Star):
         else:
             yield event.plain_result("输入格式错误！查阅/ff ddice help以确定语法。")            
 
+    @filter.permission_type(filter.PermissionType.ADMIN)
     @filter.command("sw", alias={"switch"})
     async def sw(self, event: AstrMessageEvent, module: str, state="whatever"):
         if module == "help":
