@@ -16,7 +16,7 @@ import aiohttp
 import re
 from PIL import Image
 
-plugin_version="0.0.8d"
+plugin_version="0.0.8e"
 
 comfyui_queue=False
 server_address = "192.168.1.14:8188"
@@ -297,6 +297,7 @@ class MyPlugin(Star):
         dice_mod=int(dice_mod) if dice_mod else 1
         if not dice_face:
             yield event.plain_result("ERROR: There's no dice with 0 face.")
+            return
         die_result = []
         dice_result=0
 
@@ -329,6 +330,7 @@ class MyPlugin(Star):
         dice_mod=int(dice_mod) if dice_mod else 1
         if not dice_face:
             yield event.plain_result("ERROR: There's no dice with 0 face.")
+            return
         die_result = []
         dice_result=0
 
