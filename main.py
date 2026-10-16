@@ -16,7 +16,7 @@ import aiohttp
 import re
 from PIL import Image
 
-plugin_version="0.0.8e"
+plugin_version="0.0.8f"
 
 comfyui_queue=False
 server_address = "192.168.1.14:8188"
@@ -173,11 +173,12 @@ module_dice=True
 
 
 @register("Ferrin's Toolkit", "Fylavvor", "神秘妙妙工具", plugin_version)
-class MyPlugin(Star):
+class FerrinTools(Star):
     def __init__(self, context: Context):
         super().__init__(context)
 
     async def initialize(self):
+        logger.info(f"Ferrin's Toolkit v{plugin_version} loaded.")
         """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
 
     @filter.permission_type(filter.PermissionType.ADMIN)
@@ -197,7 +198,7 @@ class MyPlugin(Star):
         global comfyui_queue
 
         if user_prompt == "help":
-            yield event.plain_result("/ff picture (user_prompt: str) [aspect_ratio: int] [mega_pixels: float]\nuser_prompt：给模型的提示词（正面）。不要包含空格（因此建议用中文）。\naspect_ratio：图片宽高比，0-7分别对应：1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9。默认为3 (3:4)。\nmega_pixels：图片的总像素数（百万像素），最高2.0，最低0.5。默认为1.0。")
+            yield event.plain_result("/picture (user_prompt: str) [aspect_ratio: int] [mega_pixels: float]\nuser_prompt：给模型的提示词（正面）。不要包含空格（因此建议用中文）。\naspect_ratio：图片宽高比，0-7分别对应：1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9。默认为3 (3:4)。\nmega_pixels：图片的总像素数（百万像素），最高2.0，最低0.5。默认为1.0。")
             return
         if module_comfyui==False:
             yield event.plain_result("WARNING: 该模块目前被禁用，请联系管理员。")
@@ -245,8 +246,8 @@ class MyPlugin(Star):
             # 无论成功还是异常，都要释放队列标记，否则插件将再也无法生成图片
             comfyui_queue = False
 
-    @filter.command("version", alias={"ver"})
-    async def version(self, event: AstrMessageEvent):
+    @filter.command("fversion", alias={"fver"})
+    async def fversion(self, event: AstrMessageEvent):
         yield event.plain_result(f"插件版本：v{plugin_version}")
 
     @filter.permission_type(filter.PermissionType.ADMIN)
@@ -255,7 +256,7 @@ class MyPlugin(Star):
         """修改ComfyUI所在ip"""
 
         if ip4=="help":
-            yield event.plain_result("""/ff setip [4th_ip_address: int]
+            yield event.plain_result("""/setip [4th_ip_address: int]
             设置ip地址。""")
             return
         try:
@@ -272,7 +273,7 @@ class MyPlugin(Star):
 
     @filter.permission_type(filter.PermissionType.ADMIN)
     @filter.command("checkip", alias={"ip"})
-    async def checkip(self,event:AstrMessageEvent):
+    async def checkip(self,event:AstrMessageEvent,*args):
         """查看当前存储的ComfyUI所在ip"""
         global server_address
         yield event.plain_result(f"当前ComfyUI服务器地址：{server_address}")
